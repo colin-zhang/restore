@@ -243,6 +243,8 @@ int BasicBusinessLogger::outputFile()
             //fdatasync(fileno(fp));
             fclose(fp);
             ::rename(outputFilePathTmp.c_str(), outputFilePath.c_str());
+        } else {
+            printf("%s\n", "error");
         }
         m_buf.clear();
     }

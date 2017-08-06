@@ -13,6 +13,7 @@
 #include "pcap.h"
 
 #include "ring_buffer.h"
+#include "buffer_ring.h"
 #include "access_cmdline.h"
 #include "rte.h"
 #include "logger.h"

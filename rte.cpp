@@ -21,7 +21,9 @@ Rte::Rte()
     : core_num(sysconf(_SC_NPROCESSORS_CONF)),
       packet_core_num(8),
       logger_core_num(1),
+      is_gzip(0),
       pcap_file("./test.pcap")
+
 {
     char buf[1024] = {0};
     FILE* f = fopen(".config", "r");

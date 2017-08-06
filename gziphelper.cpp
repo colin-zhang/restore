@@ -198,7 +198,9 @@ bool GzipHelper::isFull()
 int GzipHelper::dumpCompressFile(const char* path) 
 {
     int fd = open(path, O_CREAT | O_WRONLY | O_CLOEXEC, 0666);
+    printf("dumpCompressFile = %s, fd= %d\n", path, fd);
     if (fd < 0) {
+        printf("%s\n", "error !");
         return -1;
     }
     write(fd, &m_data.front(), m_size);
