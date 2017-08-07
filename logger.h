@@ -11,6 +11,8 @@
 #include "pcap.h"
 #include "rwlock.h"
 
+#include "buffer_ring.h"
+
 //ring buffer 主备切换的设计
 
 #if 0
@@ -20,7 +22,7 @@ typedef pthread_mutex_t LockVar;
 #define LOCK_LOCK       pthread_mutex_lock
 #define LOCK_UNLOCK     pthread_mutex_unlock
 #else
-typedef struct rw_lock LockVar;
+typedef RwLock LockVar;
 #define LOCK_INIT       rwlock_init
 #define LOCK_DESTROY    rwlock_deinit
 #define LOCK_LOCK       rwlock_write_lock
@@ -53,7 +55,8 @@ public:
     void cleanLogger();
 
 protected:
-    std::vector<PcapPacket> m_data;
+    //std::vector<PcapPacket> m_data;
+    BuffRing<PcapPacket>* m_data;
     uint32_t m_rotate_size;
     uint32_t m_rotate_cycle;
     uint8_t  m_compress_type;
@@ -65,7 +68,7 @@ protected:
 
 class BasicBusinessLogger : public BusinessLogger
 {
-    static const uint32_t kVectorThreshold = 1 << 10; 
+    static const uint32_t kVectorThreshold = 64 << 20; 
 public:
     BasicBusinessLogger();
     ~BasicBusinessLogger();

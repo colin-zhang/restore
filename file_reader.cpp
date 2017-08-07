@@ -94,7 +94,11 @@ FileReader::FileReader(std::string file_name)
 {
     uint64_t file_size = get_file_size(file_name.c_str());
     buff = mmap_create(file_name.c_str(), 0, file_size);
-    printf("length = %lu\n", buff->length);
+    if (buff != nullptr) {
+        printf("length = %lu\n", buff->length);
+    } else {
+        printf("FileReader mmap_create error \n");
+    }
 }
 
 FileReader::~FileReader()

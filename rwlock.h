@@ -1,28 +1,28 @@
 #ifndef RW_LOCK_H_
 #define RW_LOCK_H_
 
-#include <xmmintrin.h>
+#include "atomic.h"
 
-typedef struct rw_lock {
+typedef struct RwLock {
     volatile int32_t cnt; /**< -1 when W lock held, > 0 when R locks held. */
-    rw_lock() : cnt(0) {};
-} rwlock_t;
+    RwLock() : cnt(0) {};
+} RwLock;
 
 #define RWLOCK_INITIALIZER { 0 }
 
 static inline void
-rwlock_init(rwlock_t *rwl, void* p)
+rwlock_init(RwLock *rwl, void* p)
 {
     rwl->cnt = 0;
 }
 
 static inline void
-rwlock_deinit(rwlock_t *rwl)
+rwlock_deinit(RwLock *rwl)
 {
     
 }
 
-static inline void rwlock_read_lock(rwlock_t *rwl)
+static inline void rwlock_read_lock(RwLock *rwl)
 {
     int32_t x;
     int success = 0;
@@ -31,14 +31,14 @@ static inline void rwlock_read_lock(rwlock_t *rwl)
         x = rwl->cnt;
         /* write lock is held */
         if (x < 0) {
-            _mm_pause();
+            Pause();
             continue;
         }
-        success = __sync_bool_compare_and_swap((volatile uint32_t *)&rwl->cnt, x, x + 1);
+        success = AtomicCAS((volatile uint32_t *)&rwl->cnt, x, x + 1);
     }
 }
 
-static inline bool rwlock_read_trylock(rwlock_t *rwl)
+static inline bool rwlock_read_trylock(RwLock *rwl)
 {
     //
     // int32_t x = rwl->cnt;
@@ -55,17 +55,17 @@ static inline bool rwlock_read_trylock(rwlock_t *rwl)
         if (x < 0) {
             return 0;
         }
-        success = __sync_bool_compare_and_swap((volatile uint32_t *)&rwl->cnt, x, x + 1);
+        success = AtomicCAS((volatile uint32_t *)&rwl->cnt, x, x + 1);
     }
     return 1;
 }
 
-static inline void rwlock_read_unlock(rwlock_t *rwl)
+static inline void rwlock_read_unlock(RwLock *rwl)
 {
-    __sync_fetch_and_sub(&rwl->cnt, 1);
+    AtomicFetchSub(&rwl->cnt, 1);
 }
 
-static inline void rwlock_write_lock(rwlock_t *rwl)
+static inline void rwlock_write_lock(RwLock *rwl)
 {
     int32_t x;
     int success = 0;
@@ -74,16 +74,16 @@ static inline void rwlock_write_lock(rwlock_t *rwl)
         x = rwl->cnt;
         /* a lock is held */
         if (x != 0) {
-            _mm_pause();
+            Pause();
             continue;
         }
-        success = __sync_bool_compare_and_swap((volatile uint32_t *)&rwl->cnt, 0, -1);
+        success = AtomicCAS((volatile uint32_t *)&rwl->cnt, 0, -1);
     }
 }
 
-static inline void rwlock_write_unlock(rwlock_t *rwl)
+static inline void rwlock_write_unlock(RwLock *rwl)
 {
-    __sync_fetch_and_add(&rwl->cnt, 1);
+    AtomicFetchAdd(&rwl->cnt, 1);
 }
 
 #endif

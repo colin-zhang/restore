@@ -65,7 +65,7 @@ static void PacketGet(ThreadOption& opt)
 
         for (auto p : ppv) {
             gLogger.push_back(&p);
-            usleep(1);
+            //usleep(1);
         }
         break;
 
@@ -175,7 +175,7 @@ void Init()
 {
     signal(SIGINT, signal_handler);
     PcapReaderInit();
-    gLogger.init("./log", 1 << 20, 10, GlobalRte.is_gzip ? kCompressGzip : kCompressNone);
+    gLogger.init("./log", 100 << 20, 10, GlobalRte.is_gzip ? kCompressGzip : kCompressNone);
     ThreadInit();
 }
 

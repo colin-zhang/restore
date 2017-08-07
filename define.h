@@ -17,3 +17,7 @@
 #define likely(x)       (x)
 #define unlikely(x)     (x)
 #endif
+
+
+#define __define_always_inline inline __attribute__((always_inline))
+#define __define_aligned(n)    __attribute__((__aligned__(n)))

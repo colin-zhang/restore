@@ -41,7 +41,7 @@ BusinessLogger::~BusinessLogger()
 void BusinessLogger::cleanLogger()
 {
     LOCK_LOCK(&m_mutex);
-    m_data.clear();
+    //m_data.clear();
     LOCK_UNLOCK(&m_mutex);
 }
 
@@ -60,7 +60,8 @@ BasicBusinessLogger::BasicBusinessLogger()
     m_uptimeBak(0),
     m_serial_cnt(0)
 {
-    m_data.reserve(2*kVectorThreshold);
+    //m_data.reserve(2*kVectorThreshold);
+    //m_data = new BuffRing<PcapPacket>(2*kVectorThreshold);
 }
 
 BasicBusinessLogger::~BasicBusinessLogger()
@@ -101,6 +102,8 @@ int BasicBusinessLogger::init(const char* file_path,
         m_gipHelper->compressInit();
     }
 
+    m_data = new BuffRing<PcapPacket>(2*kVectorThreshold, BuffRing<PcapPacket>::kRingQueueVariable, false);
+
 #if 0
     printf("RequestLogger::init \n");
     printf("m_file_path = %s\n", m_file_path.c_str());
@@ -113,9 +116,11 @@ int BasicBusinessLogger::init(const char* file_path,
 
 int BasicBusinessLogger::push_back(PcapPacket* members)
 {
-     LOCK_LOCK(&m_mutex);
-     m_data.push_back(*members);
-     LOCK_UNLOCK(&m_mutex);
+     // LOCK_LOCK(&m_mutex);
+     // m_data.push_back(*members);
+     // LOCK_UNLOCK(&m_mutex);
+    uint32_t free_space;
+    m_data->DoEnqueue(members, 1, &free_space);
      return 0;
 }
 
@@ -162,7 +167,8 @@ int BasicBusinessLogger::makeCsvLog(PcapPacket& packet)
 
 int BasicBusinessLogger::checkRotate()
 {
-    std::vector<PcapPacket> data;
+//    std::vector<PcapPacket> data;
+PcapPacket* data;
     std::vector<PcapPacket>::iterator it;
     bool isTimeOut = false;
     bool ifOutPutFile = false;
@@ -174,23 +180,36 @@ int BasicBusinessLogger::checkRotate()
         m_roate_cnt++;
     }
 
-    if (isTimeOut || m_data.size() >= kVectorThreshold) {
-        data.reserve(2*kVectorThreshold);
-        //AutoTimer at(0, "checkRotate swap");
-        AutoTimer* at = new AutoTimer(0, "checkRotate swap", isTimeOut ? "time out" : "kVectorThreshold");
-        LOCK_LOCK(&m_mutex);
-        data.swap(m_data);
-        LOCK_UNLOCK(&m_mutex);
-        delete at;
-        return 1;
-    } else {
-        return 0;
+    // if (isTimeOut || m_data.size() >= kVectorThreshold) {
+    //     data.reserve(2*kVectorThreshold);
+    //     //AutoTimer at(0, "checkRotate swap");
+    //     AutoTimer* at = new AutoTimer(0, "checkRotate swap", isTimeOut ? "time out" : "kVectorThreshold");
+    //     LOCK_LOCK(&m_mutex);
+    //     data.swap(m_data);
+    //     LOCK_UNLOCK(&m_mutex);
+    //     delete at;
+    //     return 1;
+    // } else {
+    //     return 0;
+    // }
+    uint32_t threshold = 64 << 20;
+    uint32_t available;
+    uint32_t how_much;
+    if (isTimeOut || m_data->RingFreeCount() <= threshold) {
+
+        data = new PcapPacket[kVectorThreshold];
+        //data.reserve(2*kVectorThreshold);
+        //how_much = m_data->DoDequeue(&data.front(), kVectorThreshold, &available);
+        how_much = m_data->DoDequeue(data, kVectorThreshold, &available);
+        printf("how_much = %u , RingFreeCount() = %u RingCount() = %u\n", 
+            how_much, m_data->RingFreeCount(), m_data->RingCount());
     }
 
     m_serial_cnt = 0;
     getFileGenTime();
 
-    for (it = data.begin(); it != data.end(); it++) {
+    //for (it = data.begin(); it != data.end(); it++) {
+    for (size_t i = 0; i < how_much; i++) {
         if (m_compress_type == kCompressGzip) {
             if (m_gipHelper->isFull()) {
                 ifOutPutFile = true;
@@ -206,13 +225,15 @@ int BasicBusinessLogger::checkRotate()
             ifOutPutFile = false;
             m_serial_cnt++;
         }
-        makeCsvLog(*it);
+        //makeCsvLog(*it);
+        makeCsvLog(data[i]);
     }
 
     if (isTimeOut && m_serial_cnt == 0) {
         outputFile();
     }
 
+    delete[] data;
     return 1;
 }
 

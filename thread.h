@@ -42,7 +42,7 @@ public:
 
 private:
     void SetAffinity() {
-    #if 0
+    #if 1
         if (Option.cores.size() == 0) return;
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
