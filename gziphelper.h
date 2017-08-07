@@ -19,8 +19,9 @@ public:
     //compress_size的大小为压缩类中, 压缩流m_data的大小, 
     //不支持动态增长
     //单位MB, 
-    GzipHelper(size_t compress_size);
-    GzipHelper(size_t compress_size, int compress_level, int memory_level);
+    GzipHelper(size_t compress_size, 
+               int compress_level = kZlibCompressLevel, 
+               int memory_level = kZlibMemoryLevel);
     ~GzipHelper();
     
     //使用前首先初始化
@@ -42,6 +43,8 @@ public:
     
     //压缩流dump到文件
     int dumpCompressFile(const char* path);
+private:
+    int streamInit(z_stream* stream);
 public:
     //http://www.zlib.net/manual.html#Advanced
     static const size_t kGzipZlibHeaderDifferenceBytes = 16;

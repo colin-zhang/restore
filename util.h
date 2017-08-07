@@ -9,6 +9,12 @@
 #include <string>
 #include <vector>
 
+static inline int GetClockTime(struct timespec* tp) {
+    return clock_gettime(CLOCK_MONOTONIC, tp);
+}
+
+
+
 class Util
 {
 public:

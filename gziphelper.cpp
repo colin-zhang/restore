@@ -5,17 +5,6 @@
 #include <stdio.h>
 #include "gziphelper.h"
 
-
-GzipHelper::GzipHelper(size_t compress_size)
-    :
-      m_size(0),
-      m_compress_size(compress_size),
-      m_compress_level(kZlibCompressLevel),
-      m_memory_level(kZlibMemoryLevel)
-{
-
-}
-
 GzipHelper::GzipHelper(size_t compress_size, int compress_level, int memory_level)
     : 
       m_size(0),
@@ -29,6 +18,21 @@ GzipHelper::GzipHelper(size_t compress_size, int compress_level, int memory_leve
 GzipHelper::~GzipHelper() 
 {
 
+}
+
+int GzipHelper::streamInit(z_stream* stream)
+{
+    int err = deflateInit2(stream, 
+                            m_compress_level, 
+                            Z_DEFLATED, 
+                            MAX_WBITS + kWindowBitsToGetGzipHeader, 
+                            m_memory_level, 
+                            Z_DEFAULT_STRATEGY);
+    if (err != Z_OK) {
+        fprintf(stderr, "streamInit err=%d\n", err);
+        return err;
+    }
+    return err;
 }
 
 int GzipHelper::compressInit()
@@ -47,16 +51,7 @@ int GzipHelper::compressInit()
     //                         ZLIB_VERSION,
     //                         sizeof(z_stream));
 
-    int err = deflateInit2(&m_stream, 
-                            m_compress_level, 
-                            Z_DEFLATED, 
-                            MAX_WBITS + kWindowBitsToGetGzipHeader, 
-                            m_memory_level, 
-                            Z_DEFAULT_STRATEGY);
-    if (err != Z_OK) {
-        fprintf(stderr, "compressInit deflateInit2_  err=%d\n", err);
-        return err;
-    }
+    streamInit(&m_stream);
 
     // m_data.reserve(compressBound(m_compress_size) + 
     //                 kWindowBitsToGetGzipHeader + 
@@ -64,8 +59,6 @@ int GzipHelper::compressInit()
     m_data.reserve((m_compress_size) + 
                     kWindowBitsToGetGzipHeader + 
                     kSafeThreshold);
-    printf("m_data = %lu\n", m_data.capacity() / 1024 / 1024);
-    printf("m_data = %lu\n", ((m_compress_size) + kWindowBitsToGetGzipHeader + kSafeThreshold) / 1024 / 1024);
     m_size = 0;
     return 0;
 }
@@ -74,20 +67,7 @@ int GzipHelper::compressReset()
 {
     m_size = 0;
     deflateReset(&m_stream);
-
-    int err = deflateInit2_(&m_stream,
-                            Z_DEFAULT_COMPRESSION,
-                            Z_DEFLATED,
-                            MAX_WBITS + kWindowBitsToGetGzipHeader,
-                            kZlibCompressLevel,
-                            Z_DEFAULT_STRATEGY,
-                            ZLIB_VERSION,
-                            sizeof(z_stream));
-    if (err != Z_OK) {
-        fprintf(stderr, "compressReset deflateInit2_  err=%d\n", err);
-        return err;
-    }
-    return 0;
+    return streamInit(&m_stream);
 }
 
 int GzipHelper::compressUpdate(const char* source, uint32_t source_length)
@@ -198,7 +178,6 @@ bool GzipHelper::isFull()
 int GzipHelper::dumpCompressFile(const char* path) 
 {
     int fd = open(path, O_CREAT | O_WRONLY | O_CLOEXEC, 0666);
-    printf("dumpCompressFile = %s, fd= %d\n", path, fd);
     if (fd < 0) {
         printf("%s\n", "error !");
         return -1;
