@@ -18,6 +18,8 @@
 #include "rte.h"
 #include "logger.h"
 
+#include "clock_time.h"
+
 class LoggerManager
 {
 public:
@@ -52,34 +54,44 @@ static void signal_handler(int sig)
     StopRunning = true;
 }
 
+
 static void PacketGet(ThreadOption& opt)
 {
     printf("%s %d started\n", opt.name.c_str(), opt.id);
     PcapPacketVector ppv = gPcapReaderPtr->GetPcapPacketVector(opt.id);
     printf("ppv.size = %lu \n", ppv.size());
 
+    ClockTime clock_time;
+    uint64_t packet_size = ppv.size();
+
+    uint32_t kTimes = 100;
+    uint32_t cnt = 0;
+
+    clock_time.GatherNow();
     while (1) {
         if (unlikely(StopRunning)) {
             break;
         }
 
+        if (unlikely(cnt == kTimes)) {
+            break;
+        }
+
         for (auto p : ppv) {
             gLogger.push_back(&p);
-            //usleep(1);
+            //Pause();
         }
-        break;
-
-        usleep(1);
+        cnt++;
     }
-
-    printf("%s %d exited!\n", opt.name.c_str(), opt.id);
+    double us = clock_time.PrintDuration();
+    double rate = (double)packet_size * kTimes / us;
+    printf("%s %d exited!, %f / us\n", opt.name.c_str(), opt.id, rate);
 }
 
 static void LoggerWrite(ThreadOption& opt)
 {
     printf("%s %d started\n", opt.name.c_str(), opt.id);
-    //GzipHelper gzip_helper;
-    //gLogger.init("./log", 128 << 20, 10, kCompressGzip);
+
     while (1) {
         if (unlikely(StopRunning)) {
             break;
@@ -91,9 +103,8 @@ static void LoggerWrite(ThreadOption& opt)
         }
 
         if (gLogger.checkRotate()) {
-            break;
+            //break;
         }
-
         usleep(1);
     }
 }
@@ -140,7 +151,6 @@ static void CmdLineProcess(ThreadOption& opt)
 
 void ThreadInit() 
 {
-
     for (int i = 0; i < GlobalRte.logger_core_num; i++) {
         Thread* thd = new Thread(LoggerWrite);
         thd->Option.name = "logger_thread";
@@ -156,7 +166,6 @@ void ThreadInit()
         thd->Option.cores.push_back(i + 1);
         gThreads.push_back(thd);
     }
-
 
     for (auto th : gThreads) {
         th->Start();
@@ -175,8 +184,10 @@ void Init()
 {
     signal(SIGINT, signal_handler);
     PcapReaderInit();
-    gLogger.init("./log", 100 << 20, 10, GlobalRte.is_gzip ? kCompressGzip : kCompressNone);
+    gLogger.init("./log", 100 << 20, 1, GlobalRte.is_gzip ? kCompressGzip : kCompressNone);
     ThreadInit();
+
+    printf("sizeof(PcapPacket) = %u \n", sizeof(PcapPacket));
 }
 
 int main() 

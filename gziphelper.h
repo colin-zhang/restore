@@ -49,7 +49,7 @@ public:
     //http://www.zlib.net/manual.html#Advanced
     static const size_t kGzipZlibHeaderDifferenceBytes = 16;
     static const int kWindowBitsToGetGzipHeader = 16;
-    static const size_t kSafeThreshold = 8<<20;
+    static const size_t kSafeThreshold = 8 << 20;
     //压缩率 1-9, 9压缩率最高
     static const int kZlibCompressLevel = 1;
     //1-9, 9最高

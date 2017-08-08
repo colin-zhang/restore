@@ -46,9 +46,8 @@ public:
         }
     }
 
-    void PrintDuration()
+    double PrintDuration()
     {
-        int index = 0;
         if (CheckUpdateLater()) {
             this->GetClockTime(&val_[1]);
         }
@@ -62,9 +61,10 @@ public:
         printf("[%lus, %lums, %luus, %luns], "
                 "[%6.3fus], "
                 "[%6.6fM cycles]\n", 
-                tp.tv_sec,
-                ms, vs, ns, vsm,
+                tp.tv_sec, ms, vs, ns, 
+                vsm,
                 cycle);
+        return vsm;
     }
 private:
     void MinusTimespec(struct timespec& tp1, struct timespec& tp2)

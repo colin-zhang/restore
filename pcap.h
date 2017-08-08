@@ -39,7 +39,8 @@ struct PcapPacket
     uint16_t dst_port;    
     uint16_t l3_type;
     uint16_t l2_type;
-};
+    std::string url;
+} __attribute__((__aligned__(128)));
 
 
 static inline size_t Hash4Tuple(PcapPacket& packet)

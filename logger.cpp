@@ -23,26 +23,19 @@ int clock_gettime(int clk_id, struct timespec *t){
 #include "rwlock.h"
 
 BusinessLogger::BusinessLogger()
-  : 
-    m_rotate_size(0),
-    m_rotate_cycle(0),
-    m_compress_type(0),
-    m_start_time(0),
-    m_roate_cnt(0)
+  // : 
+  //   m_rotate_size(0),
+  //   m_rotate_cycle(0),
+  //   m_compress_type(0),
+  //   m_start_time(0),
+  //   m_roate_cnt(0)
 {
-    LOCK_INIT(&m_mutex, NULL);
+    //LOCK_INIT(&m_mutex, NULL);
 }
 
 BusinessLogger::~BusinessLogger()
 {
-    LOCK_DESTROY(&m_mutex);
-}
-
-void BusinessLogger::cleanLogger()
-{
-    LOCK_LOCK(&m_mutex);
-    //m_data.clear();
-    LOCK_UNLOCK(&m_mutex);
+    //LOCK_DESTROY(&m_mutex);
 }
 
 static inline uint32_t getTimeUpNow() {
@@ -56,11 +49,18 @@ static inline uint32_t getTimeUpNow() {
 //-----------------------------------------------------------
 
 BasicBusinessLogger::BasicBusinessLogger()
-  : 
+    :
+    m_rotate_size(0),
+    m_rotate_cycle(0),
+    m_compress_type(0),
+    m_start_time(0),
+    m_roate_cnt(0),
     m_uptimeBak(0),
     m_serial_cnt(0)
 {
-    //m_data.reserve(2*kVectorThreshold);
+    #if VECTOR_TEST
+    m_data.reserve(2*kVectorThreshold);
+    #endif
     //m_data = new BuffRing<PcapPacket>(2*kVectorThreshold);
 }
 
@@ -77,7 +77,6 @@ const char* BasicBusinessLogger::name()
 
 void BasicBusinessLogger::clear()
 {
-    cleanLogger();
     if (m_compress_type == kCompressGzip) {
         m_gipHelper->compressReset();
     } else {
@@ -102,7 +101,10 @@ int BasicBusinessLogger::init(const char* file_path,
         m_gipHelper->compressInit();
     }
 
+#if VECTOR_TEST
+#else
     m_data = new BuffRing<PcapPacket>(2*kVectorThreshold, BuffRing<PcapPacket>::kRingQueueVariable, false);
+#endif
 
 #if 0
     printf("RequestLogger::init \n");
@@ -116,12 +118,15 @@ int BasicBusinessLogger::init(const char* file_path,
 
 int BasicBusinessLogger::push_back(PcapPacket* members)
 {
-     // LOCK_LOCK(&m_mutex);
-     // m_data.push_back(*members);
-     // LOCK_UNLOCK(&m_mutex);
+    #if VECTOR_TEST
+    LOCK_LOCK(&m_mutex);
+    m_data.push_back(*members);
+    LOCK_UNLOCK(&m_mutex);
+    #else
     uint32_t free_space;
     m_data->DoEnqueue(members, 1, &free_space);
-     return 0;
+    #endif
+    return 0;
 }
 
 void BasicBusinessLogger::getFileGenTime()
@@ -164,6 +169,63 @@ int BasicBusinessLogger::makeCsvLog(PcapPacket& packet)
 
     return 0;
 }
+
+#if VECTOR_TEST
+
+int BasicBusinessLogger::checkRotate()
+{
+    std::vector<PcapPacket> data;
+    std::vector<PcapPacket>::iterator it;
+    bool isTimeOut = false;
+    bool ifOutPutFile = false;
+
+    //if (getTimeUpNow() -  >= m_uptimeBak + m_rotate_cycle) {
+    if (getTimeUpNow() - m_start_time > (m_roate_cnt * m_rotate_cycle)) {
+        isTimeOut = true;
+        m_uptimeBak = getTimeUpNow();
+        m_roate_cnt += (getTimeUpNow() - m_start_time) / m_rotate_cycle + 1;
+        //m_roate_cnt++;
+        printf("m_roate_cnt = %d\n", m_roate_cnt);
+    }
+
+    if (isTimeOut || m_data.size() >= kVectorThreshold) {
+        data.reserve(2*kVectorThreshold);
+        LOCK_LOCK(&m_mutex);
+        data.swap(m_data);
+        LOCK_UNLOCK(&m_mutex);
+    } else {
+        return 0;
+    }
+    m_serial_cnt = 0;
+    getFileGenTime();
+
+    for (it = data.begin(); it != data.end(); it++) {
+        if (m_compress_type == kCompressGzip) {
+            if (m_gipHelper->isFull()) {
+                ifOutPutFile = true;
+            }
+        } else {
+            if (m_buf.size() > m_rotate_size) {
+                ifOutPutFile = true;
+            } 
+        }
+
+        if (ifOutPutFile) {
+            outputFile();
+            ifOutPutFile = false;
+            m_serial_cnt++;
+        }
+        makeCsvLog(*it);
+    }
+
+    if (isTimeOut && m_serial_cnt == 0) {
+        outputFile();
+    }
+
+    return 1;
+}
+
+#else
 
 int BasicBusinessLogger::checkRotate()
 {
@@ -236,6 +298,8 @@ PcapPacket* data;
     delete[] data;
     return 1;
 }
+
+#endif
 
 int BasicBusinessLogger::outputFile()
 {

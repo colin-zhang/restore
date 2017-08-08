@@ -45,7 +45,7 @@ int PcapReader::ParsePacket(PcapPacket& packet, uint8_t* start, size_t len)
             tcp_hdr* tcp_header = (tcp_hdr*)ip_payload;
             packet.scr_port = ntoh16(tcp_header->src_port);
             packet.dst_port = ntoh16(tcp_header->dst_port);
-            
+
         } else if (IPPROTO_UDP == ipv4_header->next_proto_id) {
             udp_hdr* udp_header = (udp_hdr*)ip_payload;
             packet.scr_port = ntoh16(udp_header->src_port);

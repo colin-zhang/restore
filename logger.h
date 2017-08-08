@@ -13,9 +13,11 @@
 
 #include "buffer_ring.h"
 
+#define VECTOR_TEST 0
+
 //ring buffer 主备切换的设计
 
-#if 0
+#if 1
 typedef pthread_mutex_t LockVar;
 #define LOCK_INIT       pthread_mutex_init
 #define LOCK_DESTROY    pthread_mutex_destroy
@@ -47,23 +49,8 @@ public:
                     uint8_t compress_type) = 0;
 
     virtual int  push_back(PcapPacket* members) = 0;
-
     virtual int  checkRotate() = 0;
-
     virtual int  outputFile() = 0;
-
-    void cleanLogger();
-
-protected:
-    //std::vector<PcapPacket> m_data;
-    BuffRing<PcapPacket>* m_data;
-    uint32_t m_rotate_size;
-    uint32_t m_rotate_cycle;
-    uint8_t  m_compress_type;
-    LockVar m_mutex;
-    std::string m_file_path;
-    uint32_t m_start_time;
-    uint32_t m_roate_cnt;
 };
 
 class BasicBusinessLogger : public BusinessLogger
@@ -81,6 +68,20 @@ public:
     virtual int checkRotate();
     virtual int outputFile();
     void clear();
+protected:
+#if VECTOR_TEST
+    std::vector<PcapPacket> m_data;
+#else
+    BuffRing<PcapPacket>* m_data;
+#endif
+    uint32_t m_rotate_size;
+    uint32_t m_rotate_cycle;
+    uint8_t  m_compress_type;
+    LockVar m_mutex;
+    std::string m_file_path;
+    uint32_t m_start_time;
+    uint32_t m_roate_cnt;
+
 private:
     int  makeCsvLog(PcapPacket& members);
 

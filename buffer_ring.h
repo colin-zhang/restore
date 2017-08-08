@@ -257,8 +257,8 @@ private:
     int      behavior_;
     bool     single_producer_;
     bool     single_consumer_;
-    struct   RingHeadtail prod_ __define_aligned(128);
-    struct   RingHeadtail cons_ __define_aligned(128);
+    struct   RingHeadtail prod_ __define_aligned(64);
+    struct   RingHeadtail cons_ __define_aligned(64);
     T*       data_;
 };
 
